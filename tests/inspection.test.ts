@@ -5,9 +5,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { createApplication } from '../src/bootstrap.js';
-import { loadConfig } from '../src/config.js';
-
+import { createApplication } from '../src/adapter/platform/bootstrap.js';
+import { loadConfig } from '../src/adapter/platform/config.js';
 test('inspection shows exact transmitted payloads and committed sourced memories without credentials', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'agent-inspection-'));
   const transmitted: unknown[] = [];

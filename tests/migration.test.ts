@@ -3,10 +3,9 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { migrateCortico } from '../scripts/migrate-cortico.js';
-import { SqliteDatabase } from '../src/db/sqlite/database.js';
-import { SqliteConversationRepository } from '../src/db/sqlite/conversation-repository.js';
-
+import { migrateCortico } from '../src/adapter/platform/migration.js';
+import { SqliteDatabase } from '../src/adapter/platform/database.js';
+import { SqliteConversationRepository } from '../src/adapter/conversation/db.js';
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'persona-migration-'));
   const source = join(root, 'legacy-bot');

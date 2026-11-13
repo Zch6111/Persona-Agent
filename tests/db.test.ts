@@ -3,14 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SqliteDatabase } from '../src/db/sqlite/database.js';
-import { SqliteConversationRepository } from '../src/db/sqlite/conversation-repository.js';
-import { SqliteMemoryRepository } from '../src/db/sqlite/memory-repository.js';
-import { JsonReferenceRepository } from '../src/db/files/reference-repository.js';
-import { JsonCharacterRepository } from '../src/db/files/character-repository.js';
-import { FilePromptRepository } from '../src/db/files/prompt-repository.js';
-import type { MemoryEntry } from '../src/domain/memory.js';
-
+import { SqliteDatabase } from '../src/adapter/platform/database.js';
+import { SqliteConversationRepository } from '../src/adapter/conversation/db.js';
+import { SqliteMemoryRepository } from '../src/adapter/memory/db.js';
+import { JsonReferenceRepository } from '../src/adapter/persona/db.js';
+import { JsonCharacterRepository } from '../src/adapter/persona/db.js';
+import { FilePromptRepository } from '../src/adapter/persona/db.js';
+import type { MemoryEntry } from '../src/application/memory/model.js';
 const scope = { userId: 'user-a', characterId: 'dania' };
 const now = '2026-11-07T00:00:00.000Z';
 

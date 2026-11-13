@@ -3,12 +3,12 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { once } from 'node:events';
 import test from 'node:test';
 import { WebSocket } from 'ws';
-import { CompatibleLanguageModel } from '../src/api/models/compatible-language-model.js';
-import { createApiServer } from '../src/api/server.js';
-import type { ChatHistory, ChatRuntime } from '../src/api/chat/connection.js';
-import type { Message } from '../src/domain/conversation.js';
-import type { ChatEvent, ModelInput } from '../src/service/contracts.js';
-
+import { CompatibleLanguageModel } from '../src/adapter/inference/api.js';
+import { createApiServer } from '../src/adapter/platform/server.js';
+import type { ChatHistory, ChatRuntime } from '../src/adapter/conversation/api.js';
+import type { Message } from '../src/application/conversation/model.js';
+import type { ChatEvent } from '../src/application/conversation/model.js';
+import type { ModelInput } from '../src/application/inference/model.js';
 const origin = 'http://127.0.0.1:4173';
 const modelInput: ModelInput = { purpose: 'reply', instructions: 'reply as character', messages: [{ role: 'user', content: '你好' }], maxOutputTokens: 32 };
 

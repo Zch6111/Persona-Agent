@@ -4,16 +4,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import type { Conversation } from '../src/domain/conversation.js';
-import type { MemoryEntry } from '../src/domain/memory.js';
-import type { ModelInput, RuntimeSettings } from '../src/service/contracts.js';
-import { MemoryService } from '../src/service/memory-service.js';
-import type { LanguageModel } from '../src/service/ports/language-model.js';
-import { FilePromptRepository } from '../src/db/files/prompt-repository.js';
-import { SqliteDatabase } from '../src/db/sqlite/database.js';
-import { SqliteConversationRepository } from '../src/db/sqlite/conversation-repository.js';
-import { SqliteMemoryRepository } from '../src/db/sqlite/memory-repository.js';
-
+import type { Conversation } from '../src/application/conversation/model.js';
+import type { MemoryEntry } from '../src/application/memory/model.js';
+import type { ModelInput } from '../src/application/inference/model.js';
+import type { RuntimeSettings } from '../src/application/conversation/model.js';
+import { MemoryService } from '../src/application/memory/usecase.js';
+import type { LanguageModel } from '../src/application/inference/usecase.js';
+import { FilePromptRepository } from '../src/adapter/persona/db.js';
+import { SqliteDatabase } from '../src/adapter/platform/database.js';
+import { SqliteConversationRepository } from '../src/adapter/conversation/db.js';
+import { SqliteMemoryRepository } from '../src/adapter/memory/db.js';
 const settings: RuntimeSettings = {
   scope: { userId: 'reader', characterId: 'companion' },
   maxHistoryMessages: 20,

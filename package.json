@@ -3,15 +3,31 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
-  "scripts": {
-    "dev": "tsx src/main.ts",
-    "start": "tsx src/main.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "migrate:cortico": "tsx scripts/migrate-cortico.ts"
+  "engines": {
+    "node": ">=24"
   },
-  "dependencies": { "ws": "^8.18.0" },
-  "devDependencies": { "@types/node": "^24.0.0", "@types/ws": "^8.18.0", "tsx": "^4.19.0", "typescript": "^5.7.0" }
+  "scripts": {
+    "dev": "node --import tsx src/adapter/platform/main.ts",
+    "start": "node --import tsx src/adapter/platform/main.ts",
+    "start:companion": "node --import tsx src/adapter/platform/launcher.ts",
+    "dev:web": "npm --prefix src/adapter/web run dev",
+    "preview:web": "npm --prefix src/adapter/web run preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts tests/web/*.test.js",
+    "test:core": "node --import tsx --test tests/architecture.test.ts tests/db.test.ts tests/memory-service.test.ts tests/migration.test.ts tests/instance-lock.test.ts tests/usecase.test.ts tests/adapter.test.ts",
+    "build": "npm run build:backend && npm run build:web",
+    "build:backend": "tsc -p tsconfig.build.json",
+    "build:web": "npm --prefix src/adapter/web run build",
+    "migrate:cortico": "node --import tsx src/adapter/platform/migration.ts",
+    "test:web": "node --test tests/web/*.test.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
 }

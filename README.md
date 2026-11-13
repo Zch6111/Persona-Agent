@@ -1,4 +1,4 @@
-<!-- Owner: src/bootstrap.ts; src/domain/; src/service/; src/api/; src/db/; config.json; scripts/migrate-cortico.ts; scripts/start-companion.ts -->
+<!-- Owner: src/application/; src/adapter/; config.json; 启动陪伴.command; 启动飞讯.command -->
 
 # 角色陪伴后端
 
@@ -6,17 +6,18 @@
 
 ## 运行
 
-在项目上一级目录双击 **启动陪伴.command**，同时启动后端和飞讯页面。保留启动窗口；页面的「关闭飞讯」会结束本次启动的网页服务，启动器随后关闭自己启动的后端。已经独立运行的后端继续运行。
+在项目目录双击 **启动陪伴.command**，同时启动后端和飞讯页面。保留启动窗口；页面的「关闭飞讯」会结束本次启动的网页服务，启动器随后关闭自己启动的后端。已经独立运行的后端继续运行。
 
 也可以单独运行：
 
 ```bash
 cd gameAgent
-npm install
+npm ci
+npm --prefix src/adapter/web ci
 npm start
 ```
 
-随后在另一窗口运行 `frontend` 的 `npm run dev`，或双击原有的 **启动飞讯.command**。原脚本仍然只启动前端。
+随后在另一窗口运行 `npm run dev:web`，或双击 **启动飞讯.command**。该脚本只启动前端。也可执行 `npm run start:companion` 同时启动前后端。上一级目录原有的两个快捷启动脚本继续可用。
 
 - 前端：`http://127.0.0.1:4173/`
 - 聊天：`ws://127.0.0.1:8000/ws/chat`
@@ -39,7 +40,7 @@ npm start
 
 模型地址也可以是完整的 `/chat/completions` 地址。模型端点需支持 Chat Completions、JSON 对象输出及 `/models` 目录查询。后端只在本机监听，浏览器来源默认允许本机的 4173 端口。
 
-环境变量可覆盖 `AGENT_HOST`、`AGENT_PORT`、`AGENT_DATABASE`、`AGENT_MODEL_BASE_URL`、`AGENT_MODEL`；密钥仅从 `AGENT_API_KEY` 环境变量读取。改变后端端口时同步修改前端的 `public/agent-config.json`。
+环境变量可覆盖 `AGENT_HOST`、`AGENT_PORT`、`AGENT_DATABASE`、`AGENT_MODEL_BASE_URL`、`AGENT_MODEL`；密钥仅从 `AGENT_API_KEY` 环境变量读取。改变后端端口时同步修改前端的 `src/adapter/web/public/agent-config.json`。
 
 ### 本地模型与 DeepSeek API
 
@@ -70,17 +71,23 @@ DeepSeek 默认模型为 `deepseek-flash`。通过环境变量 `DEEPSEEK_API_KEY
 
 上下文采用可配置的字符预算，分别限制总输入、历史、记忆及参考材料；字符预算用于保守控制长度，不等同于模型的 token 数。更换模型窗口后应同步调整。原文始终保存在数据库，未进入某次输入的历史不会被删除。
 
-## 四层职责
+## 目录与四层职责
 
-| 层 | 主要代码 | 职责 |
-| --- | --- | --- |
-| domain | `character.ts`、`conversation.ts`、`memory.ts`、`reference.ts` | 角色、对话、真实消息、带来源的记忆、原作参考及规则 |
-| service | `ChatService`、`ContextBuilder`、`MemoryService`、`HistoryService`、`AgentRuntime` | 接收消息、回复、上下文、记忆整理、历史查询、串行调度 |
-| service/ports | 六个仓库和模型接口 | 描述流程需要的能力，独立于具体数据库、网络和模型厂商 |
-| api | `ChatWebSocketController`、`ChatConnection`、`CompatibleLanguageModel` | 前端协议、历史衔接、模型通信、取消与超时 |
-| db | SQLite 仓库、JSON/Markdown 文件仓库 | 原子持久化、历史游标、资料读取与关键词检索 |
+业务代码只分 `src/application` 和 `src/adapter`。两个大类下按业务分包，业务包内直接放职责文件，不继续建立职责目录。
 
-`bootstrap.ts` 创建具体对象并注入依赖，`main.ts` 负责进程启动和关闭。首版单后端进程，数据库实例锁防止两个后端同时恢复同一批任务。
+| 位置 | 对应层与职责 |
+| --- | --- |
+| `application/业务/model.ts` | domain：业务对象、状态、规则 |
+| `application/业务/usecase.ts` | service：业务用例、流程编排和非存储能力接口 |
+| `application/业务/repository.ts` | 存储接口：声明业务需要的查询、写入和事务语义 |
+| `adapter/业务/api.ts` | api：请求、外部协议、模型通信 |
+| `adapter/业务/db.ts` | db：SQLite、文件或内存仓库实现 |
+| `adapter/platform/` | 配置、数据库连接、服务承载、定时器、依赖装配、启动与迁移 |
+| `adapter/web/` | 独立 Vite 前端包，界面代码直接平铺 |
+
+内部业务包为 `conversation`、`memory`、`persona`、`inference`、`inspection`。每个都包含 `model.ts`、`usecase.ts`、`repository.ts`。`application` 不导入 `adapter`；由 `adapter/platform/bootstrap.ts` 注入具体实现。数据库实例锁继续防止两个后端同时恢复同一批任务。
+
+完整文件注释、方法职责、依赖关系和迁移对照见 [架构说明](docs/architecture.md)。前端说明见 [飞讯页面](src/adapter/web/README.md)。
 
 ## 数据与恢复
 
@@ -94,7 +101,7 @@ DeepSeek 默认模型为 `deepseek-flash`。通过环境变量 `DEEPSEEK_API_KEY
 
 首版记忆与原作资料采用中文词组/英文词语的关键词检索。原作资料不写入用户经历。语义向量检索、语音、多角色、主动聊天与外部工具未接入。
 
-前端当前没有持久化确认与自动重发协议，写入连接仍不等于后端已保存；接口细节见 `../frontend/agent-interface.md`。
+前端当前没有持久化确认与自动重发协议，写入连接仍不等于后端已保存；接口细节见 [聊天协议](src/adapter/web/agent-interface.md)。
 
 ## Cortico 数据迁移
 
@@ -117,4 +124,8 @@ npm test
 npm run build
 ```
 
-测试使用真实临时 SQLite、文件和本机 HTTP/WebSocket；模型由脚本化替身提供，不调用真实模型服务。构建后可运行 `node dist/main.js`。
+测试使用真实临时 SQLite、文件和本机 HTTP/WebSocket；模型由脚本化替身提供，不调用真实模型服务。构建后可运行 `node dist/adapter/platform/main.js`。
+
+完整 `npm test` 包含真实本机 HTTP/WebSocket 测试，需要环境允许监听本机端口。`npm run test:core` 可在禁止监听端口的环境验证真实 SQLite、文件仓库、内部用例、协议处理、模型请求转换和架构约束；模型通信测试使用受控替身，不请求真实模型。
+
+重构保留原有 `config.json`、`config.local.json`、`assets/`、`var/agent.sqlite`、记忆检查点和模型选择文件路径。无需重新导入现有聊天和记忆。

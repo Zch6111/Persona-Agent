@@ -5,11 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { WebSocket } from 'ws';
-import { createApplication } from '../src/bootstrap.js';
-import { loadConfig, projectRoot } from '../src/config.js';
-import type { ModelInput } from '../src/service/contracts.js';
-import type { LanguageModel } from '../src/service/ports/language-model.js';
-
+import { createApplication } from '../src/adapter/platform/bootstrap.js';
+import { loadConfig, projectRoot } from '../src/adapter/platform/config.js';
+import type { ModelInput } from '../src/application/inference/model.js';
+import type { LanguageModel } from '../src/application/inference/usecase.js';
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (error: unknown) => void;

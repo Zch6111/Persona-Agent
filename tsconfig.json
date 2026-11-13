@@ -1,8 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ES2023", "module": "NodeNext", "moduleResolution": "NodeNext",
-    "strict": true, "noUncheckedIndexedAccess": true, "esModuleInterop": true,
-    "skipLibCheck": true, "outDir": "dist", "rootDir": ".", "sourceMap": true
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "sourceMap": true
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"]
+  "include": [
+    "src/application/**/*.ts",
+    "src/adapter/**/*.ts",
+    "tests/**/*.ts"
+  ],
+  "exclude": [
+    "src/adapter/web",
+    "node_modules",
+    "dist"
+  ]
 }

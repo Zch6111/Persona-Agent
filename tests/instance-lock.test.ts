@@ -4,8 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { acquireInstanceLock } from '../src/db/sqlite/instance-lock.js';
-
+import { acquireInstanceLock } from '../src/adapter/platform/database.js';
 test('instance lock refuses a live owner, releases once and can be acquired again', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'game-agent-lock-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
