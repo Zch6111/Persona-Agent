@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>一条消息的旅程 · 大肥鱼鲸鱼娘讲四层架构</title>
+<style>
+  :root{
+    --ink:#eaf6ff;
+    --deep:#062a52;
+    --layer-domain:#ffd166;
+    --layer-service:#06d6a0;
+    --layer-api:#4cc9f0;
+    --layer-db:#9b5de5;
+    --accent:#ff9eb5;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:#031a30; overflow:hidden; font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; }
+  #viewport{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  #stage{
+    position:relative; width:1280px; height:720px;
+    background:linear-gradient(180deg,#062a52 0%,#0a3f75 55%,#0d5c9e 100%);
+    overflow:hidden; border-radius:14px; box-shadow:0 20px 80px rgba(0,0,0,.5);
+  }
+  /* 水纹背景 */
+  .wave{ position:absolute; bottom:-40px; left:-10%; width:120%; height:120px; opacity:.16; }
+  .wave path{ fill:#bfe6ff; }
+  .bubble{ position:absolute; border-radius:50%; background:rgba(191,230,255,.14); border:1px solid rgba(191,230,255,.25); }
+  @keyframes rise{ from{ transform:translateY(0); opacity:.0; } 10%{opacity:.7;} to{ transform:translateY(-760px); opacity:0; } }
+
+  /* 场景 */
+  .scene{ position:absolute; inset:0 0 90px 0; display:flex; align-items:center; justify-content:center; padding:30px 40px; opacity:0; pointer-events:none; transition:opacity .5s ease; }
+  .scene.active{ opacity:1; pointer-events:auto; }
+
+  h1.big{ font-size:74px; margin:6px 0; letter-spacing:4px; color:#fff; text-shadow:0 6px 24px rgba(0,0,0,.4); }
+  h2.med{ font-size:44px; margin:6px 0; color:#fff; }
+  .dim{ color:#cfe8ff; font-size:26px; }
+  .center{ text-align:center; }
+  .card{ background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); border-radius:16px; padding:22px 28px; }
+
+  /* 动画通用 */
+  [data-anim]{ opacity:0; transform:translateY(24px); transition:opacity .6s ease, transform .6s ease; }
+  .scene.active [data-anim]{ opacity:1; transform:none; }
+  .scene.active [data-anim="d1"]{ transition-delay:.15s; }
+  .scene.active [data-anim="d2"]{ transition-delay:.35s; }
+  .scene.active [data-anim="d3"]{ transition-delay:.55s; }
+  .scene.active [data-anim="d4"]{ transition-delay:.75s; }
+  .scene.active [data-anim="d5"]{ transition-delay:.95s; }
+
+  @keyframes pop{ 0%{ transform:scale(.4); opacity:0;} 70%{ transform:scale(1.12);} 100%{ transform:scale(1); opacity:1;} }
+  .scene.active [data-anim="pop"]{ animation:pop .6s ease both; }
+
+  /* 钩子：绿勾 */
+  .check{ display:inline-block; width:90px; height:90px; border-radius:50%; background:#22c55e; color:#fff; font-size:52px; line-height:90px; text-align:center; box-shadow:0 10px 30px rgba(34,197,94,.5); }
+  .check-label{ font-size:30px; color:#bbf7d0; margin-top:14px; }
+
+  /* 反例：大文件 */
+  .blob-file{ width:340px; background:#132a45; border:2px solid #3b5a7d; border-radius:14px; padding:18px; text-align:left; }
+  .blob-file .rows{ display:flex; flex-direction:column; gap:10px; }
+  .blob-file .row{ background:#1e3a5c; color:#cfe8ff; padding:10px 12px; border-radius:8px; font-size:20px; }
+  .tank{ width:360px; height:170px; background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.2); border-radius:14px; position:relative; display:flex; align-items:center; justify-content:space-around; font-size:40px; padding:0 20px; }
+  .tank::after{ content:"一个鱼缸"; position:absolute; bottom:8px; right:14px; font-size:18px; color:#9fd0ff; }
+
+  /* 四层三明治 */
+  .stack{ display:flex; flex-direction:column; gap:10px; width:520px; }
+  .layer{ height:86px; border-radius:14px; display:flex; align-items:center; justify-content:space-between; padding:0 26px; color:#0a2540; font-weight:700; box-shadow:0 8px 20px rgba(0,0,0,.25); }
+  .layer .lname{ font-size:34px; }
+  .layer .lrole{ font-size:22px; opacity:.85; }
+  .layer.domain{ background:var(--layer-domain); }
+  .layer.service{ background:var(--layer-service); }
+  .layer.api{ background:var(--layer-api); }
+  .layer.db{ background:var(--layer-db); }
+  .knife{ position:absolute; width:6px; height:0; background:#fff; box-shadow:0 0 14px #fff; }
+
+  /* 你好旅程 */
+  .flow{ position:relative; width:1180px; height:520px; }
+  .node{ position:absolute; width:228px; padding:14px 12px; border-radius:12px; background:rgba(255,255,255,.09); border:2px solid rgba(255,255,255,.18); text-align:center; color:#eaf6ff; transition:background .3s, border-color .3s, box-shadow .3s; }
+  .node .nt{ font-size:24px; font-weight:700; }
+  .node .nl{ font-size:17px; opacity:.85; margin-top:6px; }
+  .node.lit{ border-color:#fff; box-shadow:0 0 0 4px rgba(255,255,255,.25); }
+  .node.tag-api{ border-color:var(--layer-api); }
+  .node.tag-service{ border-color:var(--layer-service); }
+  .node.tag-db{ border-color:var(--layer-db); }
+  .badge{ display:inline-block; font-size:15px; padding:2px 9px; border-radius:999px; background:#ffd166; color:#0a2540; font-weight:700; margin-top:6px; }
+  .msgdot{ position:absolute; left:0; top:0; width:34px; height:34px; border-radius:50%; background:#ff6b9d; box-shadow:0 0 0 6px rgba(255,107,157,.28), 0 0 22px #ff6b9d; transition:left .55s cubic-bezier(.5,0,.2,1), top .55s cubic-bezier(.5,0,.2,1); opacity:0; }
+  .msgdot::after{ content:"💬"; position:absolute; inset:0; font-size:19px; line-height:34px; text-align:center; }
+  .cap{ position:absolute; left:50%; bottom:6px; transform:translateX(-50%); font-size:24px; color:#ffd166; font-weight:700; white-space:nowrap; }
+
+  /* ports 插头 */
+  .plug-area{ display:flex; gap:60px; align-items:center; }
+  .plug{ width:120px; height:60px; background:#132a45; border:3px solid #4cc9f0; border-radius:10px; position:relative; }
+  .plug::after{ content:""; position:absolute; right:-26px; top:14px; width:26px; height:26px; border:3px solid #4cc9f0; border-left:none; border-radius:0 8px 8px 0; }
+  .socket{ width:150px; height:84px; background:#0e2740; border:3px solid #9fd0ff; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#cfe8ff; font-size:20px; gap:6px; }
+
+  /* 价值三卡 */
+  .trio{ display:flex; gap:34px; }
+  .tcard{ width:250px; background:rgba(255,255,255,.09); border-radius:16px; padding:26px 20px; text-align:center; }
+  .tcard .big{ font-size:44px; }
+  .tcard .tt{ font-size:30px; color:#fff; font-weight:700; margin-top:10px; }
+  .tcard .td{ font-size:19px; color:#cfe8ff; margin-top:8px; line-height:1.6; }
+
+  /* 字幕条 */
+  #subtitle{ position:absolute; left:0; right:0; bottom:0; height:90px; display:flex; align-items:center; justify-content:center; padding:0 260px 0 40px; background:linear-gradient(180deg, rgba(6,42,82,0) 0%, rgba(3,26,48,.96) 40%); }
+  #subtitleText{ font-size:30px; color:#fff; text-align:center; max-width:900px; text-shadow:0 2px 8px rgba(0,0,0,.6); }
+
+  /* 鲸鱼娘 */
+  .whale{ position:absolute; right:20px; bottom:92px; width:240px; height:220px; filter:drop-shadow(0 12px 18px rgba(0,0,0,.4)); }
+  .whale-svg{ width:100%; height:100%; animation:bob 3.6s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-9px);} }
+  .tail{ transform-box:fill-box; transform-origin:50% 0%; animation:wag 2.6s ease-in-out infinite; }
+  @keyframes wag{ 0%,100%{ transform:rotate(0);} 25%{ transform:rotate(10deg);} 75%{ transform:rotate(-10deg);} }
+  .eye{ transform-box:fill-box; transform-origin:center; animation:blink 4.2s infinite; }
+  @keyframes blink{ 0%,90%,100%{ transform:scaleY(1);} 93%,95%{ transform:scaleY(.08);} }
+  .mouth{ transform-box:fill-box; transform-origin:center; }
+  .whale.speaking .mouth{ animation:talk .38s infinite; }
+  @keyframes talk{ 0%,100%{ transform:scaleY(1);} 50%{ transform:scaleY(1.9) translateY(-1px);} }
+  .fin{ animation:fin 3s ease-in-out infinite; }
+  @keyframes fin{ 0%,100%{ transform:rotate(0);} 50%{ transform:rotate(-8deg);} }
+
+  /* 控制与进度 */
+  #controls{ position:absolute; top:14px; left:16px; display:flex; gap:10px; z-index:20; }
+  #controls button{ background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:10px; font-size:18px; padding:8px 14px; cursor:pointer; }
+  #controls button:hover{ background:rgba(255,255,255,.22); }
+  #progress{ position:absolute; top:0; left:0; right:0; height:5px; background:rgba(255,255,255,.12); z-index:20; }
+  #progressFill{ height:100%; width:0; background:linear-gradient(90deg,#4cc9f0,#ff6b9d); }
+  #titlebar{ position:absolute; top:12px; left:50%; transform:translateX(-50%); color:#cfe8ff; font-size:18px; z-index:19; letter-spacing:2px; }
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+    <div id="progress"><div id="progressFill"></div></div>
+    <div id="titlebar">一条消息的旅程 · 大肥鱼鲸鱼娘讲四层架构</div>
+    <div id="controls">
+      <button id="btnPlay" title="播放/暂停">⏸</button>
+      <button id="btnRestart" title="重新开始">⟳</button>
+      <button id="btnVoice" title="朗读字幕（系统语音）">🔇 朗读</button>
+    </div>
+
+    <!-- 背景气泡 -->
+    <svg class="wave" viewBox="0 0 1200 120"><path d="M0 60 Q150 0 300 60 T600 60 T900 60 T1200 60 V120 H0 Z"/></svg>
+
+    <!-- 场景 0 标题 -->
+    <div class="scene s0 center" data-scene="0">
+      <div>
+        <h1 class="big" data-anim="pop">一条消息的旅程</h1>
+        <h2 class="med" data-anim="d1">大肥鱼鲸鱼娘 · 讲四层架构</h2>
+        <div class="dim" data-anim="d2">domain · service · api · db</div>
+      </div>
+    </div>
+
+    <!-- 场景 1 钩子 -->
+    <div class="scene s1 center" data-scene="1">
+      <div>
+        <div class="check" data-anim="pop">✓</div>
+        <div class="check-label" data-anim="d1">功能全都跑通了</div>
+        <h2 class="med" data-anim="d2">但——能跑，就是好代码吗？</h2>
+      </div>
+    </div>
+
+    <!-- 场景 2 反例 -->
+    <div class="scene s2" data-scene="2">
+      <div style="display:flex; gap:70px; align-items:center;">
+        <div class="blob-file" data-anim="d1">
+          <div class="dim" style="margin-bottom:12px;">一个文件塞下全世界</div>
+          <div class="rows">
+            <div class="row">收消息</div>
+            <div class="row">拼提示词</div>
+            <div class="row">调模型</div>
+            <div class="row">存数据库</div>
+            <div class="row">回前端</div>
+          </div>
+        </div>
+        <div class="tank" data-anim="d2">
+          <span>🐟</span><span>🐟</span><span>🐟</span><span>🐟</span><span>🐟</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 场景 3 四层 -->
+    <div class="scene s3" data-scene="3">
+      <div class="stack">
+        <div class="layer domain" data-anim="d1"><span class="lname">domain</span><span class="lrole">规则层 · 是什么</span></div>
+        <div class="layer service" data-anim="d2"><span class="lname">service</span><span class="lrole">流程层 · 怎么做</span></div>
+        <div class="layer api" data-anim="d3"><span class="lname">api</span><span class="lrole">翻译层 · 对内对外</span></div>
+        <div class="layer db" data-anim="d4"><span class="lname">db</span><span class="lrole">落袋层 · 存到哪</span></div>
+      </div>
+    </div>
+
+    <!-- 场景 4 你好旅程 -->
+    <div class="scene s4" data-scene="4">
+      <div class="flow">
+        <div class="node tag-api" style="left:20px; top:40px;" data-cap="第1站 · 翻译层先接住"><div class="nt">翻译层接住</div><div class="nl">检查格式、长度</div></div>
+        <div class="node tag-db" style="left:300px; top:40px;" data-cap="第2站 · 落袋：存消息 + 记欠条"><div class="nt">存消息 + 记欠条</div><div class="nl">一个事务</div><span class="badge">欠条 pending</span></div>
+        <div class="node tag-service" style="left:580px; top:40px;" data-cap="第3站 · 排队：一个出餐口"><div class="nt">排队 · 串行</div><div class="nl">同一对话一条一条来</div></div>
+        <div class="node tag-service" style="left:860px; top:40px;" data-cap="第4站 · 备菜：六路材料 + 预算"><div class="nt">六路备菜</div><div class="nl">角色/规则/历史/记忆/参考</div></div>
+        <div class="node tag-api" style="left:860px; top:300px;" data-cap="第5站 · 问模型：一次 HTTP"><div class="nt">调模型</div><div class="nl">同步等它回</div></div>
+        <div class="node tag-db" style="left:580px; top:300px;" data-cap="第6站 · 落袋：存回复 + 结清欠条"><div class="nt">回复落库 + 结清</div><div class="nl">又一个事务</div><span class="badge">欠条 completed</span></div>
+        <div class="node tag-api" style="left:300px; top:300px;" data-cap="第7站 · 先存库，再推给屏幕"><div class="nt">推给屏幕</div><div class="nl">先落库后推送</div></div>
+        <div class="msgdot"></div>
+        <div class="cap"></div>
+      </div>
+    </div>
+
+    <!-- 场景 5 ports -->
+    <div class="scene s5" data-scene="5">
+      <div class="plug-area">
+        <div class="plug" data-anim="d1"></div>
+        <div style="font-size:44px; color:#fff;" data-anim="d2">→</div>
+        <div class="socket" data-anim="d2">SQLite 插座</div>
+        <div class="socket" data-anim="d3" style="opacity:.55;">向量库 插座</div>
+      </div>
+    </div>
+
+    <!-- 场景 6 记忆轨道 -->
+    <div class="scene s6 center" data-scene="6">
+      <div style="display:flex; gap:60px; align-items:center;">
+        <div class="card" data-anim="d1">
+          <div style="font-size:30px; color:#fff;">主泳道</div>
+          <div style="font-size:20px; color:#cfe8ff; margin-top:8px;">收消息 → 回复</div>
+        </div>
+        <div style="font-size:44px; color:#fff;" data-anim="d2">┄┄➤</div>
+        <div class="card" data-anim="d3" style="border-style:dashed;">
+          <div style="font-size:30px; color:#ffd166;">后台小泳道</div>
+          <div style="font-size:20px; color:#cfe8ff; margin-top:8px;">记忆整理 · 12 条一批 · 验来源</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 场景 7 价值 -->
+    <div class="scene s7" data-scene="7">
+      <div class="trio">
+        <div class="tcard" data-anim="d1"><div class="big">🔍</div><div class="tt">好理解</div><div class="td">每层只干一件事</div></div>
+        <div class="tcard" data-anim="d2"><div class="big">🧪</div><div class="tt">好测试</div><div class="td">插假模型就能测</div></div>
+        <div class="tcard" data-anim="d3"><div class="big">🔧</div><div class="tt">好修改</div><div class="td">换实现不动业务</div></div>
+      </div>
+    </div>
+
+    <!-- 场景 8 片尾 -->
+    <div class="scene s8 center" data-scene="8">
+      <div>
+        <h1 class="big" data-anim="pop">喜欢就点个赞、投个币 🐳</h1>
+        <div class="dim" data-anim="d1">咕噜～拜拜～下次去海里抓别的 Bug</div>
+      </div>
+    </div>
+
+    <!-- 鲸鱼娘 -->
+    <div class="whale" id="whale">
+      <svg class="whale-svg" viewBox="0 0 240 220">
+        <defs>
+          <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#8fd0fb"/><stop offset="1" stop-color="#3f7fd0"/>
+          </linearGradient>
+        </defs>
+        <g class="tail"><path d="M120 150 Q120 198 92 208 Q120 186 120 158 Q120 186 148 208 Q120 198 120 150 Z" fill="#3f7fd0"/></g>
+        <g class="fin" style="transform-box:fill-box; transform-origin:right center;"><ellipse cx="56" cy="112" rx="13" ry="34" fill="#4a8fe0" transform="rotate(20 56 112)"/></g>
+        <g class="fin" style="transform-box:fill-box; transform-origin:left center;"><ellipse cx="184" cy="112" rx="13" ry="34" fill="#4a8fe0" transform="rotate(-20 184 112)"/></g>
+        <ellipse cx="120" cy="104" rx="70" ry="82" fill="url(#bodyGrad)"/>
+        <ellipse cx="120" cy="130" rx="48" ry="52" fill="#eaf6ff"/>
+        <g class="eye"><ellipse cx="96" cy="88" rx="12" ry="14" fill="#fff"/><circle cx="98" cy="90" r="6" fill="#1b2a41"/><circle cx="100" cy="87" r="2" fill="#fff"/></g>
+        <g class="eye"><ellipse cx="144" cy="88" rx="12" ry="14" fill="#fff"/><circle cx="146" cy="90" r="6" fill="#1b2a41"/><circle cx="148" cy="87" r="2" fill="#fff"/></g>
+        <circle cx="80" cy="112" r="8" fill="#ff9eb5" opacity=".75"/>
+        <circle cx="160" cy="112" r="8" fill="#ff9eb5" opacity=".75"/>
+        <g class="mouth"><ellipse cx="120" cy="119" rx="9" ry="4" fill="#e2574c"/></g>
+        <g class="ahoge"><path d="M120 26 Q134 8 150 14 Q138 22 128 30 Z" fill="#1b2a41"/></g>
+        <g class="hairpin"><path d="M82 18 a11 11 0 1 1 22 0 z" fill="#ffd166"/><circle cx="93" cy="13" r="3" fill="#f7b733"/></g>
+      </svg>
+    </div>
+
+    <div id="subtitle"><span id="subtitleText"></span></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var stage = document.getElementById('stage');
+  var subtitleEl = document.getElementById('subtitleText');
+  var progressFill = document.getElementById('progressFill');
+  var whale = document.getElementById('whale');
+  var btnPlay = document.getElementById('btnPlay');
+  var btnRestart = document.getElementById('btnRestart');
+  var btnVoice = document.getElementById('btnVoice');
+
+  var SCENES = [
+    { subtitle:"呜哇～大家好，我是鲸鲸！今天带你看一条消息，怎么在我的后院里游完全程。", dur:5200 },
+    { subtitle:"你的机器人已经能聊天啦。但鲸鲸问你哦——能跑，就等于好代码吗？", dur:6000 },
+    { subtitle:"最偷懒的写法，是把活儿全堆进一个文件。五条鱼挤一个鱼缸，牵一发动全身。", dur:6200 },
+    { subtitle:"所以要切成四层三明治：规则、流程、翻译、落袋。上层只认接口，不认实现。", dur:7000 },
+    { subtitle:"现在，跟着「你好」游一遍：存消息→记账→排队→备菜→问模型→存回复→推屏幕。", dur:16500 },
+    { subtitle:"service 靠 ports 干活：只认插头形状，不认插座牌子。换实现，不改业务。", dur:6000 },
+    { subtitle:"还有条后台小泳道：记忆整理一次 12 条，验来源，不挡你聊天。", dur:5500 },
+    { subtitle:"好理解、好测试、好修改——能安心地改，才是好代码。", dur:6000 },
+    { subtitle:"喜欢就点个赞、投个币！咕噜～拜拜～", dur:4500 }
+  ];
+
+  var total = 0;
+  var offsets = SCENES.map(function(s){ var o = total; total += s.dur; return o; });
+
+  var running = true;
+  var elapsed = 0;
+  var current = -1;
+  var last = null;
+  var timers = [];
+  var voiceOn = false;
+
+  function clearTimers(){ timers.forEach(clearTimeout); timers.length = 0; }
+
+  function setSubtitle(text){
+    subtitleEl.textContent = text;
+    if(voiceOn && 'speechSynthesis' in window){
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN';
+      u.rate = 0.95;
+      u.pitch = 1.15;
+      var voices = speechSynthesis.getVoices();
+      var zh = voices.filter(function(v){ return /zh|cmn|CN/i.test(v.lang); });
+      if(zh.length) u.voice = zh[0];
+      speechSynthesis.speak(u);
+    }
+  }
+
+  function sceneAt(t){
+    for(var i = SCENES.length - 1; i >= 0; i--){ if(t >= offsets[i]) return i; }
+    return 0;
+  }
+
+  function runScene4(){
+    var flow = document.querySelector('.s4 .flow');
+    var dot = document.querySelector('.s4 .msgdot');
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('.s4 .node'));
+    var cap = document.querySelector('.s4 .cap');
+    var dur = SCENES[4].dur;
+    var step = Math.max(600, (dur - 400) / nodes.length);
+    nodes.forEach(function(n){ n.classList.remove('lit'); });
+    dot.style.opacity = '0';
+    nodes.forEach(function(n, i){
+      timers.push(setTimeout(function(){
+        nodes.forEach(function(x){ x.classList.remove('lit'); });
+        n.classList.add('lit');
+        var x = n.offsetLeft - flow.offsetLeft + n.offsetWidth/2 - 17;
+        var y = n.offsetTop - flow.offsetTop + n.offsetHeight/2 - 17;
+        dot.style.left = x + 'px';
+        dot.style.top = y + 'px';
+        dot.style.opacity = '1';
+        if(cap) cap.textContent = n.getAttribute('data-cap') || '';
+      }, 300 + i * step));
+    });
+  }
+
+  function showScene(i){
+    clearTimers();
+    current = i;
+    var scenes = document.querySelectorAll('.scene');
+    Array.prototype.forEach.call(scenes, function(el, k){ el.classList.toggle('active', k === i); });
+    setSubtitle(SCENES[i].subtitle);
+    whale.classList.add('speaking');
+    if(i === 4) runScene4();
+  }
+
+  function restart(){
+    clearTimers();
+    elapsed = 0;
+    last = null;
+    showScene(0);
+  }
+
+  function frame(now){
+    if(running){
+      var dt = last ? now - last : 0;
+      last = now;
+      elapsed += dt;
+      if(elapsed >= total){ elapsed = 0; last = now; }
+      var idx = sceneAt(elapsed);
+      if(idx !== current) showScene(idx);
+      progressFill.style.width = (Math.min(elapsed / total, 1) * 100) + '%';
+    } else {
+      last = null;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  btnPlay.addEventListener('click', function(){
+    running = !running;
+    btnPlay.textContent = running ? '⏸' : '▶';
+    if(running) last = null;
+  });
+  btnRestart.addEventListener('click', restart);
+  btnVoice.addEventListener('click', function(){
+    voiceOn = !voiceOn;
+    btnVoice.textContent = voiceOn ? '🔊 朗读中' : '🔇 朗读';
+    if(!voiceOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+    if(voiceOn) setSubtitle(SCENES[current >= 0 ? current : 0].subtitle);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.code === 'Space'){ e.preventDefault(); btnPlay.click(); }
+    if(e.key === 'r' || e.key === 'R'){ restart(); }
+  });
+
+  // 水波气泡
+  (function bubbles(){
+    for(var i = 0; i < 14; i++){
+      var b = document.createElement('div');
+      b.className = 'bubble';
+      var s = 6 + Math.random() * 22;
+      b.style.width = s + 'px';
+      b.style.height = s + 'px';
+      b.style.left = (Math.random() * 100) + '%';
+      b.style.bottom = '-30px';
+      b.style.animation = 'rise ' + (6 + Math.random() * 9) + 's linear ' + (Math.random() * 8) + 's infinite';
+      stage.appendChild(b);
+    }
+  })();
+
+  if('speechSynthesis' in window) speechSynthesis.getVoices();
+
+  showScene(0);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "host": "127.0.0.1",
+  "port": 8000,
+  "allowedOrigins": ["http://127.0.0.1:4173", "http://localhost:4173"],
+  "database": "var/agent.sqlite",
+  "scope": { "userId": "local-user", "characterId": "dania" },
+  "model": {
+    "baseUrl": "http://127.0.0.1:11434/v1",
+    "model": "cortico-roleplay:7b",
+    "timeoutMs": 120000,
+    "temperature": 0.8
+  },
+  "context": {
+    "maxContextChars": 12000,
+    "maxHistoryMessages": 60,
+    "maxHistoryChars": 6000,
+    "maxMemoryChars": 2500,
+    "maxReferenceChars": 4000,
+    "maxInputChars": 4000,
+    "maxOutputTokens": 1024,
+    "memoryBatchSize": 12
+  }
+}
